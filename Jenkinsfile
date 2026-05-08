@@ -1,20 +1,15 @@
 pipeline {
 
-  // WHERE to run — 'any' = any available agent/node
   agent any
 
-  // GLOBAL ENV VARIABLES — available in all stages
   environment {
-    APP_NAME  = 'my-app'
-    VERSION   = '1.0.0'
+    APP_NAME = 'devops-lab-app'
   }
 
-  // TOOLS — auto-provisioned by Global Tool Config
   tools {
     nodejs 'NodeJS-18'
   }
 
-  // PIPELINE STAGES
   stages {
 
     stage('Checkout') {
@@ -34,10 +29,6 @@ pipeline {
       steps {
         sh 'npm test'
       }
-      // What to do if test stage fails
-      post {
-        failure { echo 'Tests failed! Fix before merging.' }
-      }
     }
 
     stage('Build') {
@@ -47,21 +38,35 @@ pipeline {
     }
 
     stage('Deploy') {
-      // Only deploy from 'main' branch
-      when { branch 'main' }
       steps {
-        sh './scripts/deploy.sh'
+        sh '''
+        docker stop devops-app || true
+        docker rm devops-app || true
+
+        docker build -t devops-lab-app .
+
+        docker run -d \
+          --name devops-app \
+          -p 3000:3000 \
+          devops-lab-app
+        '''
       }
     }
 
   }
 
-  // POST — runs after all stages complete
   post {
-    always  { echo 'Pipeline finished.' }
-    success { echo '✅ Build passed!' }
-    failure { echo '❌ Build failed — check logs.' }
-    cleanup { cleanWs() }
+    always {
+      echo 'Pipeline finished.'
+    }
+
+    success {
+      echo '✅ Build passed!'
+    }
+
+    failure {
+      echo '❌ Build failed.'
+    }
   }
 
 }
